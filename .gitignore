@@ -1,0 +1,17 @@
+node_modules/
+.next/
+out/
+dist/
+coverage/
+.env
+.env.local
+*.log
+.DS_Store
+.vscode/
+.idea/
+playwright-report/
+test-results/
+*.tsbuildinfo
+# never commit Datathon files or data exports
+datathon/
+exports/
