@@ -40,7 +40,6 @@ Before exporting, rename the duplicated/unnamed frames in Figma so each has a un
 | Dispatcher / 04a Live Monitor | `dispatcher_04a-live-monitor.png` | `/dispatcher/monitor` |
 | Dispatcher / 04b Departure Readiness | `dispatcher_04b-departure-readiness.png` | `/dispatcher/readiness` |
 | Dispatcher / 05 Reefer Breakdown | `dispatcher_05-reefer-breakdown.png` | `/dispatcher/incident/[id]` **degradation (main)** |
-| Frame 240 / Workspace | (shared sidebar + workspace shell) | layout component |
 
 ## Loader (`/loader/*`, Figma is 1920x1080 but BUILD MOBILE-FIRST)
 | Figma frame | File | Route |
@@ -70,7 +69,7 @@ Before exporting, rename the duplicated/unnamed frames in Figma so each has a un
 | Report an issue off | `driver_03b-report-issue-disabled.png` | same, disabled state |
 | Dilivery Complete (sic, fix typo in Figma) | `driver_04-delivery-complete.png` | `/driver/stops/[id]/done` |
 | Offline driver route | `driver_05-offline-route.png` | `/driver` offline state **degradation** |
-| Frame 2, Frame 3, Frame 4 (unnamed) | **rename**, e.g. `driver_06-*.png` | check what they are (stop details? ordered stops?) |
+| Report submitted | `driver_06-report-submitted.png` | Submit report confirmation |
 
 ## Not frames to export
 Pages "User Personas", "User Flows", "AI Tool Disclosure", "Overview" are Designathon documents, not UI.
