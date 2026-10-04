@@ -4,8 +4,9 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 model User {
@@ -27,17 +28,17 @@ enum Role {
 }
 
 model Outlet {
-  id                 String  @id
-  name               String
-  brand              Brand
-  districtId         String
-  depotId            String
-  dockType           String
-  parkingConstraint  String?
-  mallWindow         Boolean
-  windowOpenTime     String? // e.g., "08:00"
-  windowCloseTime    String?
-  orders             Order[]
+  id                String   @id
+  name              String
+  brand             Brand
+  districtId        String
+  depotId           String
+  dockType          String
+  parkingConstraint String?
+  mallWindow        Boolean
+  windowOpenTime    String?  // e.g., "08:00"
+  windowCloseTime   String?
+  orders            Order[]
 }
 
 enum Brand {
@@ -47,17 +48,17 @@ enum Brand {
 }
 
 model Vehicle {
-  id                String  @id
-  type              VehicleType // TRUCK, VAN
-  temp              TempType    // REEFER, AMBIENT
-  weightCapKg       Float
-  volumeCapM3       Float
-  fuelType          String
-  kmPerL            Float
-  weeklyFuelQuotaL  Float
-  depotId           String
-  status            String      // AVAILABLE, IN_WORKSHOP, EN_ROUTE
-  trips             Trip[]
+  id               String      @id
+  type             VehicleType // TRUCK, VAN
+  temp             TempType    // REEFER, AMBIENT
+  weightCapKg      Float
+  volumeCapM3      Float
+  fuelType         String
+  kmPerL           Float
+  weeklyFuelQuotaL Float
+  depotId          String
+  status           String      // AVAILABLE, IN_WORKSHOP, EN_ROUTE
+  trips            Trip[]
 }
 
 enum VehicleType {
@@ -87,14 +88,14 @@ model District {
 }
 
 model DistrictTravel {
-  id                        String @id @default(uuid())
-  depotId                   String
-  districtId                String
-  depotToDistrictKm         Float
+  id                         String @id @default(uuid())
+  depotId                    String
+  districtId                 String
+  depotToDistrictKm          Float
   depotToDistrictFreeflowMin Float
-  interStopKm               Float
-  interStopFreeflowMin      Float
-  roadClass                 String
+  interStopKm                Float
+  interStopFreeflowMin       Float
+  roadClass                  String
 }
 
 model ServiceAllowance {
@@ -115,20 +116,20 @@ model CalendarDay {
 
 // Transactional Data
 model Order {
-  id                   String      @id @default(uuid())
-  outletId             String
-  outlet               Outlet      @relation(fields: [outletId], references: [id])
-  status               OrderStatus
-  targetDate           DateTime
-  createdAt            DateTime    @default(now())
-  cutoffTime           DateTime
-  totalVolumeM3        Float
-  totalWeightKg        Float
-  isChilled            Boolean
-  deferredYesterday    Boolean     @default(false)
-  daysSinceLastServed  Int         @default(0)
-  lines                OrderLine[]
-  tripStop             TripStop?
+  id                  String      @id @default(uuid())
+  outletId            String
+  outlet              Outlet      @relation(fields: [outletId], references: [id])
+  status              OrderStatus
+  targetDate          DateTime
+  createdAt           DateTime    @default(now())
+  cutoffTime          DateTime
+  totalVolumeM3       Float
+  totalWeightKg       Float
+  isChilled           Boolean
+  deferredYesterday   Boolean     @default(false)
+  daysSinceLastServed Int         @default(0)
+  lines               OrderLine[]
+  tripStop            TripStop?
 }
 
 enum OrderStatus {
@@ -159,16 +160,16 @@ model Plan {
 }
 
 model Trip {
-  id          String     @id @default(uuid())
-  planId      String?
-  plan        Plan?      @relation(fields: [planId], references: [id])
-  vehicleId   String?
-  vehicle     Vehicle?   @relation(fields: [vehicleId], references: [id])
-  tripNumber  Int        // 1 or 2
-  brand       Brand
-  districtId  String
-  status      TripStatus
-  stops       TripStop[]
+  id         String     @id @default(uuid())
+  planId     String?
+  plan       Plan?      @relation(fields: [planId], references: [id])
+  vehicleId  String?
+  vehicle    Vehicle?   @relation(fields: [vehicleId], references: [id])
+  tripNumber Int        // 1 or 2
+  brand      Brand
+  districtId String
+  status     TripStatus
+  stops      TripStop[]
 }
 
 enum TripStatus {
