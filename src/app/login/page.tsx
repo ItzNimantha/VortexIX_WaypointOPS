@@ -14,20 +14,29 @@ export default function LoginPage() {
     setLoading(true)
     setError(null)
 
-    const formData = new FormData(e.currentTarget)
-    const result = await login(formData)
+    try {
+      const formData = new FormData(e.currentTarget)
+      const result = await login(formData)
 
-    if (result.error) {
-      setError(result.error)
-      setLoading(false)
-    } else if (result.success) {
-      const roleMap: Record<string, string> = {
-        'STORE_MANAGER': '/store',
-        'DISPATCHER': '/dispatcher',
-        'LOADER': '/loader',
-        'DRIVER': '/driver'
+      if (result?.error) {
+        setError(result.error)
+        setLoading(false)
+      } else if (result?.success) {
+        const roleMap: Record<string, string> = {
+          'STORE_MANAGER': '/store',
+          'DISPATCHER': '/dispatcher',
+          'LOADER': '/loader',
+          'DRIVER': '/driver'
+        }
+        router.push(roleMap[result.role as string] || '/')
+      } else {
+        setError('An unexpected error occurred.')
+        setLoading(false)
       }
-      router.push(roleMap[result.role as string] || '/')
+    } catch (err: any) {
+      console.error('Login submit error:', err)
+      setError(err?.message || 'Login failed. Please try again.')
+      setLoading(false)
     }
   }
 

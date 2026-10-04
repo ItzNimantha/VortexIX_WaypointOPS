@@ -1,3 +1,4 @@
+import 'dotenv/config'
 import { PrismaClient, Role, Brand, VehicleType, TempType, OrderStatus } from '@prisma/client'
 import { PrismaPg } from '@prisma/adapter-pg'
 import { Pool } from 'pg'
@@ -6,8 +7,12 @@ import path from 'path'
 import { parse } from 'csv-parse/sync'
 import bcrypt from 'bcryptjs'
 
-// Use the IPv4-compatible Pooler URL (DATABASE_URL) and enable SSL
-const connectionString = process.env.DATABASE_URL
+// Use DIRECT_URL (direct connection) or DATABASE_URL and enable SSL
+const connectionString = process.env.DIRECT_URL || process.env.DATABASE_URL
+if (!connectionString) {
+  throw new Error("Neither DIRECT_URL nor DATABASE_URL is set in environment variables.")
+}
+
 const pool = new Pool({ 
   connectionString,
   ssl: { rejectUnauthorized: false } 
@@ -17,6 +22,7 @@ const prisma = new PrismaClient({ adapter })
 
 async function main() {
   console.log('Starting DB seed...')
+  console.log(`Connecting via: ${connectionString.replace(/:[^:@]+@/, ':****@')}`)
   const seedDataDir = path.join(process.cwd(), 'seed-data')
 
   const readCsv = (filename: string) => {
@@ -25,103 +31,78 @@ async function main() {
   }
 
   // 1. Seed Outlets
+  console.log('Seeding outlets...')
   const outlets = readCsv('outlets.csv')
-  for (const row of outlets) {
-    await prisma.outlet.upsert({
-      where: { id: row.outlet_id },
-      update: {},
-      create: {
-        id: row.outlet_id,
-        name: row.outlet_name || row.outlet_id,
-        brand: row.brand.toUpperCase() as Brand,
-        districtId: row.district,
-        depotId: row.depot,
-        dockType: row.dock_type,
-        parkingConstraint: row.parking_constraint || null,
-        mallWindow: row.mall_window === '1' || row.mall_window === 'true',
-        windowOpenTime: row.window_open_time || null,
-        windowCloseTime: row.window_close_time || null,
-      },
-    })
-  }
+  const outletsData = outlets.map((row: any) => ({
+    id: row.outlet_id,
+    name: row.outlet_name || row.outlet_id,
+    brand: row.brand.toUpperCase() as Brand,
+    districtId: row.district,
+    depotId: row.depot,
+    dockType: row.dock_type,
+    parkingConstraint: row.parking_constraint || null,
+    mallWindow: row.mall_window === '1' || row.mall_window === 'true',
+    windowOpenTime: row.window_open_time || null,
+    windowCloseTime: row.window_close_time || null,
+  }))
+  await prisma.outlet.createMany({ data: outletsData, skipDuplicates: true })
 
   // 2. Seed Vehicles
+  console.log('Seeding vehicles...')
   const vehicles = readCsv('vehicles.csv')
-  for (const row of vehicles) {
-    await prisma.vehicle.upsert({
-      where: { id: row.vehicle_id },
-      update: {},
-      create: {
-        id: row.vehicle_id,
-        type: row.type.toUpperCase() as VehicleType,
-        temp: row.temp.toUpperCase() as TempType,
-        weightCapKg: parseFloat(row.weight_cap_kg),
-        volumeCapM3: parseFloat(row.volume_cap_m3),
-        fuelType: row.fuel_type,
-        kmPerL: parseFloat(row.km_per_l),
-        weeklyFuelQuotaL: parseFloat(row.weekly_fuel_quota_l),
-        depotId: row.depot,
-        status: 'AVAILABLE',
-      },
-    })
-  }
+  const vehiclesData = vehicles.map((row: any) => ({
+    id: row.vehicle_id,
+    type: row.type.toUpperCase() as VehicleType,
+    temp: row.temp.toUpperCase() as TempType,
+    weightCapKg: parseFloat(row.weight_cap_kg),
+    volumeCapM3: parseFloat(row.volume_cap_m3),
+    fuelType: row.fuel_type,
+    kmPerL: parseFloat(row.km_per_l),
+    weeklyFuelQuotaL: parseFloat(row.weekly_fuel_quota_l),
+    depotId: row.depot,
+    status: 'AVAILABLE',
+  }))
+  await prisma.vehicle.createMany({ data: vehiclesData, skipDuplicates: true })
 
   // 3. Seed Calendar
+  console.log('Seeding calendar...')
   const calendar = readCsv('calendar.csv')
-  for (const row of calendar) {
-    await prisma.calendarDay.upsert({
-      where: { date: new Date(row.date) },
-      update: {},
-      create: {
-        date: new Date(row.date),
-        isOperating: row.is_operating === '1' || row.is_operating === 'true',
-        isPayday: row.is_payday === '1' || row.is_payday === 'true',
-        festival: row.festival || null,
-        festivalRamp: row.festival_ramp ? parseInt(row.festival_ramp) : null,
-        monsoon: row.monsoon === '1' || row.monsoon === 'true',
-      },
-    })
-  }
+  const calendarData = calendar.map((row: any) => ({
+    date: new Date(row.date),
+    isOperating: row.is_operating === '1' || row.is_operating === 'true',
+    isPayday: row.is_payday === '1' || row.is_payday === 'true',
+    festival: row.festival || null,
+    festivalRamp: row.festival_ramp ? parseInt(row.festival_ramp) : null,
+    monsoon: row.monsoon === '1' || row.monsoon === 'true',
+  }))
+  await prisma.calendarDay.createMany({ data: calendarData, skipDuplicates: true })
 
   // 4. Seed District Travel
+  console.log('Seeding district travel...')
   const districtTravel = readCsv('district_travel.csv')
-  for (const row of districtTravel) {
-    const existing = await prisma.districtTravel.findFirst({
-      where: { depotId: row.depot, districtId: row.district }
-    })
-    if (!existing) {
-      await prisma.districtTravel.create({
-        data: {
-          depotId: row.depot,
-          districtId: row.district,
-          depotToDistrictKm: parseFloat(row.depot_to_district_km),
-          depotToDistrictFreeflowMin: parseFloat(row.depot_to_district_freeflow_min),
-          interStopKm: parseFloat(row.inter_stop_km),
-          interStopFreeflowMin: parseFloat(row.inter_stop_freeflow_min),
-          roadClass: row.road_class,
-        },
-      })
-    }
-  }
+  const districtTravelData = districtTravel.map((row: any) => ({
+    depotId: row.depot,
+    districtId: row.district,
+    depotToDistrictKm: parseFloat(row.depot_to_district_km),
+    depotToDistrictFreeflowMin: parseFloat(row.depot_to_district_freeflow_min),
+    interStopKm: parseFloat(row.inter_stop_km),
+    interStopFreeflowMin: parseFloat(row.inter_stop_freeflow_min),
+    roadClass: row.road_class,
+  }))
+  await prisma.districtTravel.createMany({ data: districtTravelData, skipDuplicates: true })
 
   // 5. Seed Service Allowance
+  console.log('Seeding service allowance...')
   const serviceAllowance = readCsv('service_allowance.csv')
-  for (const row of serviceAllowance) {
-    const existing = await prisma.serviceAllowance.findFirst({
-      where: { brand: row.brand.toUpperCase() as Brand, dockType: row.dock_type }
-    })
-    if (!existing) {
-      await prisma.serviceAllowance.create({
-        data: {
-          brand: row.brand.toUpperCase() as Brand,
-          dockType: row.dock_type,
-          allowanceMin: parseFloat(row.service_allowance_min),
-        }
-      })
-    }
-  }
+  const serviceAllowanceData = serviceAllowance.map((row: any) => ({
+    brand: row.brand.toUpperCase() as Brand,
+    dockType: row.dock_type,
+    allowanceMin: parseFloat(row.service_allowance_min),
+  }))
+  await prisma.serviceAllowance.createMany({ data: serviceAllowanceData, skipDuplicates: true })
 
   // 5.25 Seed Products
+  console.log('Seeding products...')
   const products = [
     { id: 'P01', name: 'Fresh Milk 1L', category: 'Dairy', brand: Brand.FRESH, isChilled: true, volumeM3: 0.001, weightKg: 1 },
     { id: 'P02', name: 'Chicken Breast 1kg', category: 'Meat', brand: Brand.FRESH, isChilled: true, volumeM3: 0.002, weightKg: 1 },
@@ -130,65 +111,56 @@ async function main() {
     { id: 'P05', name: 'Bread Loaf', category: 'Bakery', brand: Brand.FRESH, isChilled: false, volumeM3: 0.004, weightKg: 0.5 },
     { id: 'P06', name: 'Orange Juice 1L', category: 'Beverages', brand: Brand.FRESH, isChilled: false, volumeM3: 0.001, weightKg: 1 },
   ]
-  for (const p of products) {
-    await prisma.product.upsert({
-      where: { id: p.id },
-      update: {},
-      create: p,
-    })
-  }
+  await prisma.product.createMany({ data: products, skipDuplicates: true })
 
   // 5.5 Seed Orders (Task2b scenario)
+  console.log('Seeding orders...')
   const orders = readCsv('task2b_peak_day_scenarios.csv')
   const targetDate = new Date()
   targetDate.setHours(0, 0, 0, 0)
-  for (const row of orders) {
-    if (row.scenario === 'S1') {
-      await prisma.order.upsert({
-        where: { id: row.order_ref },
-        update: {},
-        create: {
-          id: row.order_ref,
-          outletId: row.outlet_id,
-          status: OrderStatus.CONFIRMED,
-          targetDate: targetDate,
-          cutoffTime: new Date(targetDate.getTime() - 8 * 60 * 60 * 1000), // Previous day 4pm
-          totalVolumeM3: parseFloat(row.order_volume_m3),
-          totalWeightKg: parseFloat(row.order_weight_kg),
-          isChilled: row.temp_requirement === 'chilled',
-          deferredYesterday: row.deferred_yesterday === '1',
-          daysSinceLastServed: parseInt(row.days_since_last_served),
-        }
-      })
-    }
-  }
+  const ordersData = orders
+    .filter((row: any) => row.scenario === 'S1')
+    .map((row: any) => ({
+      id: row.order_ref,
+      outletId: row.outlet_id,
+      status: OrderStatus.CONFIRMED,
+      targetDate: targetDate,
+      cutoffTime: new Date(targetDate.getTime() - 8 * 60 * 60 * 1000), // Previous day 4pm
+      totalVolumeM3: parseFloat(row.order_volume_m3),
+      totalWeightKg: parseFloat(row.order_weight_kg),
+      isChilled: row.temp_requirement === 'chilled',
+      deferredYesterday: row.deferred_yesterday === '1',
+      daysSinceLastServed: parseInt(row.days_since_last_served),
+    }))
 
-  // 5.75 Seed Kandy Orders (smaller realistic day)
   let kandyOrderIdx = 1;
+  const kandyOrdersData: any[] = [];
   for (const row of outlets) {
     if (row.depot_id === 'Kandy' || row.depot === 'Kandy') {
       const isChilled = kandyOrderIdx % 3 === 0;
-      await prisma.order.upsert({
-        where: { id: `KND-${kandyOrderIdx.toString().padStart(3, '0')}` },
-        update: {},
-        create: {
-          id: `KND-${kandyOrderIdx.toString().padStart(3, '0')}`,
-          outletId: row.outlet_id,
-          status: OrderStatus.CONFIRMED,
-          targetDate: targetDate,
-          cutoffTime: new Date(targetDate.getTime() - 8 * 60 * 60 * 1000), // Previous day 4pm
-          totalVolumeM3: isChilled ? 1.5 : 2.0,
-          totalWeightKg: isChilled ? 300 : 500,
-          isChilled: isChilled,
-          deferredYesterday: false,
-          daysSinceLastServed: 1,
-        }
-      })
+      kandyOrdersData.push({
+        id: `KND-${kandyOrderIdx.toString().padStart(3, '0')}`,
+        outletId: row.outlet_id,
+        status: OrderStatus.CONFIRMED,
+        targetDate: targetDate,
+        cutoffTime: new Date(targetDate.getTime() - 8 * 60 * 60 * 1000),
+        totalVolumeM3: isChilled ? 1.5 : 2.0,
+        totalWeightKg: isChilled ? 300 : 500,
+        isChilled: isChilled,
+        deferredYesterday: false,
+        daysSinceLastServed: 1,
+      });
       kandyOrderIdx++;
     }
   }
 
+  await prisma.order.createMany({
+    data: [...ordersData, ...kandyOrdersData],
+    skipDuplicates: true,
+  })
+
   // 6. Users (Auth)
+  console.log('Seeding users...')
   const passwordHash = await bcrypt.hash('password123', 10)
   
   const seedUsers = [
@@ -225,4 +197,5 @@ main()
   })
   .finally(async () => {
     await prisma.$disconnect()
+    await pool.end()
   })
