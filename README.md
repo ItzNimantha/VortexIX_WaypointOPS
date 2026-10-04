@@ -3,9 +3,9 @@
 A complete, working, deployable web application for the fictional Sri Lankan retail group Waypoint Group (Pvt) Ltd.
 
 > **Hackathon Submission Links**
-> - **Deployed URL:** [Your Vercel URL Here]
-> - **Demo Video:** [Your YouTube/Drive Link Here]
-> - **Repository:** [Your GitHub Link Here]
+> - **Deployed URL:** https://vortex-ix.vercel.app/login
+> - **Demo Video:** https://youtu.be/AWGWzFtxJxo?si=vAGoJnn6nWOWgDkW
+> - **Repository:** https://github.com/ItzNimantha/VortexIX_WaypointOPS.git
 
 ## Setup & Configuration
 
