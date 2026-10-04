@@ -6,9 +6,12 @@ import path from 'path'
 import { parse } from 'csv-parse/sync'
 import bcrypt from 'bcryptjs'
 
-// Initialize Prisma 7 Driver Adapter for PostgreSQL
-const connectionString = process.env.DIRECT_URL || process.env.DATABASE_URL
-const pool = new Pool({ connectionString })
+// Use the IPv4-compatible Pooler URL (DATABASE_URL) and enable SSL
+const connectionString = process.env.DATABASE_URL
+const pool = new Pool({ 
+  connectionString,
+  ssl: { rejectUnauthorized: false } 
+})
 const adapter = new PrismaPg(pool)
 const prisma = new PrismaClient({ adapter })
 
