@@ -6,7 +6,7 @@ Free-tier terms below were checked on 2 Oct 2026. Re-check before relying on the
 ## Why this combination
 - **Render free web service** can run the Dockerfile directly from a private GitHub repo, gives HTTPS, no card needed. Caveats: it sleeps after 15 minutes without traffic (about 1 minute to wake), the filesystem is ephemeral, and free instance hours are capped per month.
 - **Neon free Postgres** is permanent (does not expire). **Do not use Render's own free Postgres**: it is deleted 30 days after creation, and judging runs past that.
-- Because the filesystem is ephemeral, photos live in Postgres (see AGENTS.md).
+- Because the filesystem is ephemeral, photos live in Postgres.
 
 ## Steps
 1. Neon: create a project, copy the **pooled** connection string (-> `DATABASE_URL`) and the **direct** one (-> `DIRECT_URL`). Keep `?sslmode=require`.

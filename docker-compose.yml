@@ -1,0 +1,38 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: waypoint
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: waypoint
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U waypoint"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      DATABASE_URL: postgresql://waypoint:password@db:5432/waypoint?schema=public
+      SESSION_SECRET: super-secret-key-for-hackathon-only
+      NEXT_PUBLIC_APP_URL: http://localhost:3000
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - uploaded_photos:/app/public/uploads
+
+volumes:
+  pgdata:
+  uploaded_photos:

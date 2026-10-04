@@ -1,0 +1,270 @@
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x", "linux-musl"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  role      Role     // STORE_MANAGER, DISPATCHER, LOADER, DRIVER
+  outletId  String?  // If Store Manager
+  vehicleId String?  // If Driver
+  depotId   String?  // If Loader/Dispatcher
+  createdAt DateTime @default(now())
+}
+
+enum Role {
+  STORE_MANAGER
+  DISPATCHER
+  LOADER
+  DRIVER
+}
+
+model Outlet {
+  id                 String  @id
+  name               String
+  brand              Brand
+  districtId         String
+  depotId            String
+  dockType           String
+  parkingConstraint  String?
+  mallWindow         Boolean
+  windowOpenTime     String? // e.g., "08:00"
+  windowCloseTime    String?
+  orders             Order[]
+}
+
+enum Brand {
+  FRESH
+  STYLE
+  TECH
+}
+
+model Vehicle {
+  id                String  @id
+  type              VehicleType // TRUCK, VAN
+  temp              TempType    // REEFER, AMBIENT
+  weightCapKg       Float
+  volumeCapM3       Float
+  fuelType          String
+  kmPerL            Float
+  weeklyFuelQuotaL  Float
+  depotId           String
+  status            String      // AVAILABLE, IN_WORKSHOP, EN_ROUTE
+  trips             Trip[]
+}
+
+enum VehicleType {
+  TRUCK
+  VAN
+}
+
+enum TempType {
+  REEFER
+  AMBIENT
+}
+
+model Product {
+  id        String  @id
+  name      String
+  category  String
+  brand     Brand
+  isChilled Boolean
+  volumeM3  Float
+  weightKg  Float
+}
+
+// Planning & Geography Data
+model District {
+  id   String @id
+  name String
+}
+
+model DistrictTravel {
+  id                        String @id @default(uuid())
+  depotId                   String
+  districtId                String
+  depotToDistrictKm         Float
+  depotToDistrictFreeflowMin Float
+  interStopKm               Float
+  interStopFreeflowMin      Float
+  roadClass                 String
+}
+
+model ServiceAllowance {
+  id           String @id @default(uuid())
+  brand        Brand
+  dockType     String
+  allowanceMin Float
+}
+
+model CalendarDay {
+  date         DateTime @id
+  isOperating  Boolean
+  isPayday     Boolean
+  festival     String?
+  festivalRamp Int?
+  monsoon      Boolean
+}
+
+// Transactional Data
+model Order {
+  id                   String      @id @default(uuid())
+  outletId             String
+  outlet               Outlet      @relation(fields: [outletId], references: [id])
+  status               OrderStatus
+  targetDate           DateTime
+  createdAt            DateTime    @default(now())
+  cutoffTime           DateTime
+  totalVolumeM3        Float
+  totalWeightKg        Float
+  isChilled            Boolean
+  deferredYesterday    Boolean     @default(false)
+  daysSinceLastServed  Int         @default(0)
+  lines                OrderLine[]
+  tripStop             TripStop?
+}
+
+enum OrderStatus {
+  PENDING
+  CONFIRMED
+  PLANNED
+  LOADING
+  IN_TRANSIT
+  LOADED
+  DELIVERED
+  DEFERRED
+  CANCELLED
+}
+
+model OrderLine {
+  id        String  @id @default(uuid())
+  orderId   String
+  order     Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId String
+  quantity  Int
+}
+
+model Plan {
+  id      String   @id @default(uuid())
+  depotId String
+  date    DateTime
+  trips   Trip[]
+}
+
+model Trip {
+  id          String     @id @default(uuid())
+  planId      String?
+  plan        Plan?      @relation(fields: [planId], references: [id])
+  vehicleId   String?
+  vehicle     Vehicle?   @relation(fields: [vehicleId], references: [id])
+  tripNumber  Int        // 1 or 2
+  brand       Brand
+  districtId  String
+  status      TripStatus
+  stops       TripStop[]
+}
+
+enum TripStatus {
+  PLANNED
+  LOADING
+  IN_TRANSIT
+  DEPARTED
+  DELIVERED
+  COMPLETED
+}
+
+model TripStop {
+  id            String       @id @default(uuid())
+  tripId        String
+  trip          Trip         @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  sequence      Int
+  orderId       String?      @unique
+  order         Order?       @relation(fields: [orderId], references: [id])
+  plannedEta    DateTime
+  actualArrival DateTime?
+  outcome       StopOutcome?
+}
+
+enum StopOutcome {
+  SUCCESS
+  PARTIAL
+  FAILED
+}
+
+model Deferral {
+  id               String   @id @default(uuid())
+  orderId          String
+  reason           String
+  reasonType       String   // FORCED, CHOICE
+  runDate          DateTime
+  consecutiveCount Int
+}
+
+// Execution & Feedback
+model LoadingRecord {
+  id        String @id @default(uuid())
+  tripId    String @unique
+  loaderId  String
+  status    String // IN_PROGRESS, COMPLETED
+}
+
+model LoadingItemFlag {
+  id              String @id @default(uuid())
+  loadingRecordId String
+  productId       String
+  issueType       String // MISSING, DAMAGED
+  quantity        Int
+}
+
+model ProofOfDelivery {
+  id            String   @id @default(uuid())
+  tripStopId    String   @unique
+  photoUrl      String?
+  signatureUrl  String?
+  timestamp     DateTime
+  lat           Float?
+  lng           Float?
+  clientEventId String   @unique // For idempotent offline sync
+}
+
+model IssueReport {
+  id                String   @id @default(uuid())
+  reporterId        String
+  relatedEntityType String   // ORDER, TRIP, STOP
+  relatedEntityId   String
+  issueType         String
+  note              String?
+  photoUrl          String?
+  createdAt         DateTime @default(now())
+}
+
+model Notification {
+  id         String   @id @default(uuid())
+  userId     String
+  message    String
+  readStatus Boolean  @default(false)
+  type       String   // SMS_SIMULATION, PUSH_SIMULATION, IN_APP
+  createdAt  DateTime @default(now())
+}
+
+model SyncEvent {
+  id            String   @id @default(uuid())
+  clientEventId String   @unique
+  payload       Json
+  processedAt   DateTime @default(now())
+}
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  userId    String
+  action    String
+  details   Json
+  createdAt DateTime @default(now())
+}
